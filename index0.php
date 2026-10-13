@@ -1,8 +1,31 @@
 <?php
 require_once "db.php";
 
-$stmt = $pdo->query("SELECT * FROM products ORDER BY name ASC");
+// Fetch products with their category names
+$sql = "SELECT
+            p.id,
+            p.name,
+            p.description,
+            p.price,
+            p.image,
+            p.category_id,
+            c.name AS category_name
+        FROM products p
+        INNER JOIN categories c
+            ON p.category_id = c.id
+        ORDER BY p.name ASC";
+
+$stmt = $pdo->query($sql);
 $products = $stmt->fetchAll();
+
+// Fetch all categories
+$categoryStmt = $pdo->query(
+    "SELECT id, name, description
+     FROM categories
+     ORDER BY name ASC"
+);
+
+$categories = $categoryStmt->fetchAll();
 ?>
 
 <!DOCTYPE html>
