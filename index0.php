@@ -1,4 +1,9 @@
+<?php
+require_once "db.php";
 
+$stmt = $pdo->query("SELECT * FROM products ORDER BY name ASC");
+$products = $stmt->fetchAll();
+?>
 
 <!DOCTYPE html>
 
