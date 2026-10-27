@@ -1811,12 +1811,9 @@ echo json_encode(array_map(function ($product) {
     ];
 }, $products), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
 ?>;
-    let categories = [
-        { name: "Fashion", description: "Clothing and fashion items" },
-        { name: "Footwear", description: "Shoes and footwear" },
-        { name: "Electronics", description: "Electronic devices and accessories" },
-        { name: "Accessories", description: "Everyday accessories" }
-    ];
+    let categories = <?php
+echo json_encode($categories);
+?>;
     let activeCategory = "All";
     let searchTerm = "";
 
@@ -2083,45 +2080,90 @@ echo json_encode(array_map(function ($product) {
         });
     }
 
-    document.getElementById("productForm").addEventListener("submit", async function(event) {
-        event.preventDefault();
-        const idValue = document.getElementById("editProductId").value;
-        const oldProduct = idValue ? products.find(function(product) { return product.id === Number(idValue); }) : null;
-        let image = document.getElementById("adminProductImage").value.trim() || (oldProduct ? oldProduct.image : "");
-        const imageFile = document.getElementById("adminProductImageFile").files[0];
-        if (imageFile) {
-            if (!imageFile.type.startsWith("image/")) {
-                document.getElementById("productFormMessage").textContent = "Please select an image file.";
-                return;
-            }
-            image = await new Promise(function(resolve, reject) {
-                const reader = new FileReader();
-                reader.onload = function() { resolve(reader.result); };
-                reader.onerror = function() { reject(new Error("Could not read the image file.")); };
-                reader.readAsDataURL(imageFile);
-            }).catch(function() { return ""; });
+   
+document.getElementById("productForm").addEventListener("submit", async function(event) {
+    event.preventDefault();
+
+    const idValue = document.getElementById("editProductId").value;
+
+    // Editing will be connected in a later step.
+    if (idValue) {
+        document.getElementById("productFormMessage").textContent =
+            "Editing will be connected in the next step.";
+        return;
+    }
+
+    const name = document.getElementById("adminProductName").value.trim();
+    const description = document.getElementById("adminProductDescription").value.trim();
+    const price = document.getElementById("adminProductPrice").value;
+    const categoryName = document.getElementById("adminProductCategory").value;
+    const imageUrl = document.getElementById("adminProductImage").value.trim();
+    const imageFile = document.getElementById("adminProductImageFile").files[0];
+
+    let image = imageUrl;
+
+    if (imageFile) {
+        if (!imageFile.type.startsWith("image/")) {
+            document.getElementById("productFormMessage").textContent =
+                "Please select a valid image.";
+            return;
         }
-        const item = {
-            id: idValue ? Number(idValue) : Date.now(),
-            name: document.getElementById("adminProductName").value.trim(),
-            description: document.getElementById("adminProductDescription").value.trim(),
-            price: Number(document.getElementById("adminProductPrice").value),
-            category: document.getElementById("adminProductCategory").value,
-            image: image,
-            rating: oldProduct ? (oldProduct.rating || "★★★★★") : "★★★★★"
-        };
-        if (idValue) {
-            products = products.map(function(product) { return product.id === Number(idValue) ? item : product; });
-            document.getElementById("productFormMessage").textContent = "Product updated successfully in this browser demo.";
-        } else {
-            products.push(item);
-            document.getElementById("productFormMessage").textContent = "Product added successfully in this browser demo.";
+
+        image = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error("Image could not be read."));
+            reader.readAsDataURL(imageFile);
+        }).catch(() => "");
+
+        if (!image) {
+            document.getElementById("productFormMessage").textContent =
+                "Could not read the image.";
+            return;
         }
-        saveCatalog();
-        renderProducts();
-        renderAdminLists();
-        resetProductForm(false);
-    });
+    }
+
+    const category = categories.find(c => c.name === categoryName);
+
+    if (!category || !category.id) {
+        document.getElementById("productFormMessage").textContent =
+            "Category IDs are required. We will fix this in the next step.";
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("name", name);
+    formData.append("description", description);
+    formData.append("price", price);
+    formData.append("category_id", category.id);
+    formData.append("image", image);
+
+    try {
+        const response = await fetch("save_product.php", {
+            method: "POST",
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || "Could not save product.");
+        }
+
+        document.getElementById("productFormMessage").textContent =
+            "Product added successfully to MySQL!";
+
+        document.getElementById("productForm").reset();
+
+        // Reload the page to retrieve the latest products from MySQL.
+        setTimeout(() => window.location.reload(), 800);
+
+    } catch (error) {
+        document.getElementById("productFormMessage").textContent =
+            error.message || "Could not connect to the server.";
+    }
+});
+
 
     function editProduct(id) {
         const product = products.find(function(item) { return item.id === id; });
