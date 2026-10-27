@@ -1799,7 +1799,18 @@ $categories = $categoryStmt->fetchAll();
 
 <script>
     let cartCount = 0;
-    let products = [];
+    let products = <?php
+echo json_encode(array_map(function ($product) {
+    return [
+        'id' => (int) $product['id'],
+        'name' => $product['name'],
+        'description' => $product['description'],
+        'price' => (float) $product['price'],
+        'image' => $product['image'],
+        'category' => $product['category_name']
+    ];
+}, $products), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+?>;
     let categories = [
         { name: "Fashion", description: "Clothing and fashion items" },
         { name: "Footwear", description: "Shoes and footwear" },
@@ -1809,16 +1820,7 @@ $categories = $categoryStmt->fetchAll();
     let activeCategory = "All";
     let searchTerm = "";
 
-    const starterProducts = [
-        { id: 1, name: "Classic T-Shirt", description: "Premium cotton casual T-shirt.", price: 599, category: "Fashion", image: "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab", rating: "★★★★★" },
-        { id: 2, name: "Running Sneakers", description: "Comfortable sneakers for everyday use.", price: 1999, category: "Footwear", image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff", rating: "★★★★★" },
-        { id: 3, name: "Classic Watch", description: "Elegant watch for everyday wear.", price: 1499, category: "Accessories", image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30", rating: "★★★★☆" },
-        { id: 4, name: "Travel Backpack", description: "Stylish and spacious travel backpack.", price: 999, category: "Accessories", image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62", rating: "★★★★★" },
-        { id: 5, name: "Wireless Headphones", description: "High-quality wireless headphones.", price: 2499, category: "Electronics", image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e", rating: "★★★★★" },
-        { id: 6, name: "Premium Sunglasses", description: "Stylish sunglasses with premium design.", price: 799, category: "Accessories", image: "https://images.unsplash.com/photo-1511499767150-a48a237f0083", rating: "★★★★☆" },
-        { id: 7, name: "Leather Handbag", description: "Elegant handbag for everyday use.", price: 1799, category: "Accessories", image: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa", rating: "★★★★★" },
-        { id: 8, name: "Smartphone", description: "Modern smartphone with premium features.", price: 14999, category: "Electronics", image: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9", rating: "★★★★★" }
-    ];
+    
 
     function saveCatalog() {
         localStorage.setItem("shopeaseProducts", JSON.stringify(products));
@@ -1826,23 +1828,10 @@ $categories = $categoryStmt->fetchAll();
     }
 
     function loadCatalog() {
-        try {
-            const savedProducts = localStorage.getItem("shopeaseProducts");
-            const savedCategories = localStorage.getItem("shopeaseCategories");
-            products = savedProducts ? JSON.parse(savedProducts) : starterProducts.slice();
-            if (savedCategories) categories = JSON.parse(savedCategories);
-        } catch (error) {
-            products = starterProducts.slice();
-            categories = [
-                { name: "Fashion", description: "Clothing and fashion items" },
-                { name: "Footwear", description: "Shoes and footwear" },
-                { name: "Electronics", description: "Electronic devices and accessories" },
-                { name: "Accessories", description: "Everyday accessories" }
-            ];
-        }
-        renderCategories();
-        renderProducts();
-        renderAdminLists();
+    renderCategories();
+    renderProducts();
+    renderAdminLists();
+
     }
 
     function renderCategories() {
