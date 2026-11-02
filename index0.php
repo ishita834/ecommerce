@@ -1710,22 +1710,34 @@ $categories = $categoryStmt->fetchAll();
     </div>
 </div>
 
+
+
 <!-- ADMIN LOGIN MODAL -->
 <div class="modal-overlay" id="adminLoginModal" role="dialog" aria-modal="true" aria-labelledby="adminLoginTitle">
     <div class="modal-card admin-login-card">
-        <button class="modal-close" type="button" onclick="closeModal('adminLoginModal')" aria-label="Close">×</button>
+
+        <button class="modal-close" type="button"
+            onclick="closeModal('adminLoginModal')" aria-label="Close">×</button>
+
         <h2 id="adminLoginTitle">Administrator Login</h2>
-        <p class="admin-hint">Demo frontend login: admin / admin123</p>
+
+
         <form id="adminLoginForm">
-            <label for="adminUsername">Username or email</label>
-            <input id="adminUsername" required autocomplete="username" placeholder="Enter username">
+
+            <label for="adminUsername">Username</label>
+            <input type="text" id="adminUsername" required>
+
             <label for="adminPassword">Password</label>
-            <input id="adminPassword" type="password" required autocomplete="current-password" placeholder="Enter password">
+            <input type="password" id="adminPassword" required>
+
             <button class="admin-primary" type="submit">Login</button>
+
             <p id="loginMessage" class="form-message" role="status"></p>
+
         </form>
     </div>
 </div>
+
 
 <!-- ADMIN DASHBOARD -->
 <div class="modal-overlay" id="adminDashboardModal" role="dialog" aria-modal="true" aria-labelledby="adminDashboardTitle">
@@ -1988,35 +2000,50 @@ echo json_encode($categories);
     }
 
     function openAdminLogin() {
-        document.getElementById("loginMessage").textContent = "";
-        document.getElementById("adminUsername").value = "";
-        document.getElementById("adminPassword").value = "";
-        openModal("adminLoginModal");
-    }
+    document.getElementById("loginMessage").textContent = "";
+    document.getElementById("adminUsername").value = "";
+    document.getElementById("adminPassword").value = "";
+    openModal("adminLoginModal");
+}
 
-    document.getElementById("adminLoginForm").addEventListener("submit", function(event) {
-        event.preventDefault();
-        const username = document.getElementById("adminUsername").value.trim();
-        const password = document.getElementById("adminPassword").value;
-        if (username === "admin" && password === "admin123") {
-            closeModal("adminLoginModal");
-            openModal("adminDashboardModal");
-            renderAdminLists();
-        } else {
-            document.getElementById("loginMessage").textContent = "Invalid demo credentials. Try admin / admin123.";
-        }
+document.getElementById("adminLoginForm").addEventListener("submit", async function(event) {
+    event.preventDefault();
+
+    const username = document.getElementById("adminUsername").value.trim();
+    const password = document.getElementById("adminPassword").value;
+
+    const response = await fetch("admin_login.php", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({username, password})
     });
 
-    function adminLogout() {
-        closeModal("adminDashboardModal");
-        document.getElementById("adminLoginForm").reset();
-    }
+    const result = await response.json();
 
-    function showAdminTab(tabId, button) {
-        document.querySelectorAll(".admin-pane").forEach(function(pane) { pane.hidden = pane.id !== tabId; });
-        document.querySelectorAll(".admin-tab").forEach(function(tab) { tab.classList.remove("active"); });
-        button.classList.add("active");
+    if (result.success) {
+        closeModal("adminLoginModal");
+        openModal("adminDashboardModal");
+        renderAdminLists();
+    } else {
+        document.getElementById("loginMessage").textContent = "Invalid username or password.";
     }
+});
+
+function adminLogout() {
+    fetch("admin_logout.php", {method: "POST"});
+    closeModal("adminDashboardModal");
+    document.getElementById("adminLoginForm").reset();
+}
+
+function showAdminTab(tabId, button) {
+    document.querySelectorAll(".admin-pane").forEach(pane => {
+        pane.hidden = pane.id !== tabId;
+    });
+    document.querySelectorAll(".admin-tab").forEach(tab => {
+        tab.classList.remove("active");
+    });
+    button.classList.add("active");
+}
 
     function populateCategorySelect() {
         const select = document.getElementById("adminProductCategory");
@@ -2081,62 +2108,30 @@ echo json_encode($categories);
     }
 
    
+
 document.getElementById("productForm").addEventListener("submit", async function(event) {
     event.preventDefault();
-
-    const idValue = document.getElementById("editProductId").value;
-
-    // Editing will be connected in a later step.
-    if (idValue) {
-        document.getElementById("productFormMessage").textContent =
-            "Editing will be connected in the next step.";
-        return;
-    }
 
     const name = document.getElementById("adminProductName").value.trim();
     const description = document.getElementById("adminProductDescription").value.trim();
     const price = document.getElementById("adminProductPrice").value;
-    const categoryName = document.getElementById("adminProductCategory").value;
-    const imageUrl = document.getElementById("adminProductImage").value.trim();
+    const categoryId = document.getElementById("adminProductCategory").value;
     const imageFile = document.getElementById("adminProductImageFile").files[0];
 
-    let image = imageUrl;
+    const message = document.getElementById("productFormMessage");
 
-    if (imageFile) {
-        if (!imageFile.type.startsWith("image/")) {
-            document.getElementById("productFormMessage").textContent =
-                "Please select a valid image.";
-            return;
-        }
-
-        image = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = () => reject(new Error("Image could not be read."));
-            reader.readAsDataURL(imageFile);
-        }).catch(() => "");
-
-        if (!image) {
-            document.getElementById("productFormMessage").textContent =
-                "Could not read the image.";
-            return;
-        }
-    }
-
-    const category = categories.find(c => c.name === categoryName);
-
-    if (!category || !category.id) {
-        document.getElementById("productFormMessage").textContent =
-            "Category IDs are required. We will fix this in the next step.";
+    if (!imageFile) {
+        message.textContent = "Please select a product image.";
         return;
     }
 
     const formData = new FormData();
+
     formData.append("name", name);
     formData.append("description", description);
     formData.append("price", price);
-    formData.append("category_id", category.id);
-    formData.append("image", image);
+    formData.append("category_id", categoryId);
+    formData.append("image", imageFile);
 
     try {
         const response = await fetch("save_product.php", {
@@ -2150,17 +2145,16 @@ document.getElementById("productForm").addEventListener("submit", async function
             throw new Error(result.message || "Could not save product.");
         }
 
-        document.getElementById("productFormMessage").textContent =
-            "Product added successfully to MySQL!";
+        message.textContent = "Product added successfully!";
 
         document.getElementById("productForm").reset();
 
-        // Reload the page to retrieve the latest products from MySQL.
-        setTimeout(() => window.location.reload(), 800);
+        setTimeout(function() {
+            window.location.reload();
+        }, 800);
 
     } catch (error) {
-        document.getElementById("productFormMessage").textContent =
-            error.message || "Could not connect to the server.";
+        message.textContent = error.message;
     }
 });
 
