@@ -1,6 +1,20 @@
 <?php
+session_start();
+
 require_once "db.php";
 
+if (!isset($_SESSION['cart'])) {
+    $_SESSION['cart'] = [];
+}
+
+$cartCount = array_sum(array_column($_SESSION['cart'], 'quantity'));
+require_once "db.php";
+
+if (!isset($_SESSION['cart'])) {
+    $_SESSION['cart'] = [];
+}
+
+$cartCount = array_sum(array_column($_SESSION['cart'], 'quantity'));
 // Fetch products with their category names
 $sql = "SELECT
             p.id,
@@ -1271,10 +1285,8 @@ $categories = $categoryStmt->fetchAll();
 
         <a href="#" onclick="openAdminLogin(); return false;">Admin</a>
 
-        <a href="#" class="cart-button">
-
-            🛒 Cart (<span id="cartCount">0</span>)
-
+        <a href="cart.php" class="cart-button">
+            🛒 Cart (<span id="cartCount"><?php echo $cartCount; ?></span>)
         </a>
 
 
@@ -1899,7 +1911,7 @@ echo json_encode($categories);
             add.className = "add-cart";
             add.textContent = "Add to Cart";
             add.type = "button";
-            add.onclick = function() { addToCart(product.name); };
+            add.onclick = function() { addToCart(product); };
             const details = document.createElement("button");
             details.className = "details-button";
             details.textContent = "View Details";
@@ -1942,14 +1954,40 @@ echo json_encode($categories);
         renderProducts();
     }
 
-    function addToCart(productName) {
-        cartCount++;
+    async function addToCart(product) {
+    try {
+        const response = await fetch("add_to_cart.php", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                id: product.id
+            })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            throw new Error(result.message || "Unable to add product.");
+        }
+
+        cartCount = result.cartCount;
+
         document.getElementById("cartCount").innerText = cartCount;
+
         const message = document.getElementById("cartMessage");
-        message.innerText = productName + " added to cart!";
+        message.innerText = product.name + " added to cart!";
         message.style.display = "block";
-        setTimeout(function() { message.style.display = "none"; }, 2000);
+
+        setTimeout(function() {
+            message.style.display = "none";
+        }, 2000);
+
+    } catch (error) {
+        alert(error.message);
     }
+}
 
     function scrollToProducts() {
         document.getElementById("products").scrollIntoView({ behavior: "smooth" });
@@ -1992,7 +2030,7 @@ echo json_encode($categories);
         const add = document.createElement("button");
         add.className = "admin-primary";
         add.textContent = "Add to Cart";
-        add.onclick = function() { addToCart(product.name); };
+        add.onclick = function() { addToCart(product); };
         info.append(category, name, description, price, add);
         layout.append(img, info);
         content.appendChild(layout);
